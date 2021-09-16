@@ -1,6 +1,8 @@
 import * as random from "./util/random";
 import { Lch } from "./util/color";
 
+import { Renderer, Program, Camera, Orbit, Transform, Mesh, Plane } from './util/ogl';
+
 export default (hash) => {
   // You may want to remove this line for production
   console.log(hash);
@@ -8,57 +10,77 @@ export default (hash) => {
   // set the shared PRNG to new seed
   random.set_seed(hash);
 
-  const colors = [
-    Lch(50, 50, random.range(180, 360)),
-    Lch(100, 70, random.range(0, 180)),
-  ];
-
-  const background = Lch(95, 0, 0);
-
-  const margin = 0.15;
-  const shapes = Array(450)
-    .fill()
-    .map(() => [
-      random.range(margin, 1 - margin),
-      random.range(margin, 1 - margin),
-      Math.abs(random.gaussian(0, 0.01)),
-      random.pick(colors),
-    ]);
-
-  const setContext = (context, color) => {
-    context.fillStyle = color;
-  };
-
   return (context, width, height) => {
     const dim = Math.min(width, height);
-    let lineWidth = dim * 0.1;
 
-    setContext(context, background);
-    context.fillRect(0, 0, width, height);
-    context.lineWidth = lineWidth;
+    const renderer = new Renderer({ canvas: context.canvas });    
+    renderer.setSize(width, height);
 
-    // 'contain' fit mode
-    let scale = 1 >= width / height ? width : height;
+    const camera = new Camera(context, { fov: 35 });
+    camera.position.set(0, 0, 5);    
+    const controls = new Orbit(camera);
 
-    // 'cover' fit mode
-    // let scale = 1 < width / height ? width : height;
+    const scene = new Transform();
 
-    let tx = (width - scale) * 0.5;
-    let ty = (height - scale) * 0.5;
+    const geometry = new Plane(context);
 
-    // draw shapes
-    shapes.forEach(([x, y, radius, color]) => {
-      setContext(context, color);
-      context.beginPath();
-      context.arc(
-        tx + x * scale,
-        ty + y * scale,
-        radius * scale,
-        0,
-        Math.PI * 2,
-        false
-      );
-      context.fill();
-    });
+    const program = new Program(context, {
+      vertex: /* glsl */`
+        attribute vec2 uv;
+        attribute vec3 position;
+        attribute vec3 normal;
+
+        uniform mat4 modelViewMatrix;
+        uniform mat4 projectionMatrix;
+        
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        
+        void main() {
+          vUv = uv;
+          vNormal = normal;
+          
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }        
+      `,
+
+      fragment: /* glsl */`
+        precision highp float;
+        
+        varying vec3 vNormal;
+        
+        void main() {
+          vec3 normal = normalize(vNormal);
+          float lighting = dot(normal, normalize(vec3(-0.3, 0.8, 0.6)));
+
+          gl_FragColor.rgb = vec3(0.2, 0.8, 1.0) + lighting * 0.1;
+          gl_FragColor.a = 1.0;
+        }      
+      `,
+
+      uniforms: {
+        uTime: { value: 0 },
+      },
+    }); 
+    
+    const mesh = new Mesh(context, { geometry, program });
+    mesh.setParent(scene);
+
+    const resize = (width, height) => {
+      renderer.setSize(width, height);
+      
+      this.camera.perspective({
+        aspect: context.canvas.width / context.canvas.height,
+      });
+    }
+
+    const update = () => {
+      requestAnimationFrame(update);
+
+      controls.update();
+      
+      renderer.render({ scene, camera });
+    }    
+    requestAnimationFrame(update);
   };
 };
