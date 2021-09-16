@@ -35,5 +35,7 @@
     "rollup": "^2.50.2",
     "terser": "^5.7.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "three": "^0.132.2"
+  }
 }

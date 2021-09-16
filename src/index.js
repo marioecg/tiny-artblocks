@@ -14,16 +14,16 @@ export default (() => {
   let W = window,
     D = document;
   const canvas = D.body.appendChild(D.createElement("canvas"));
-  const context = canvas.getContext("2d");
+  const context = canvas.getContext("webgl");
 
   let render;
   let width, height, pixelRatio;
 
   const draw = () => {
-    context.save();
-    context.scale(pixelRatio, pixelRatio);
+    // context.save();
+    // context.scale(pixelRatio, pixelRatio);
     render(context, width, height);
-    context.restore();
+    // context.restore();
   };
 
   const resize = () => {
